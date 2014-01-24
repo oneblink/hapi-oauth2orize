@@ -1,0 +1,12 @@
+{
+  "name": "immigration",
+  "description": "Wrapper around OAuth2Orize for Hapi",
+  "version": "0.0.1",
+  "main": "index",
+  "dependencies": {
+    "oauth2orize": "~1.0.1"
+  },
+  "peerDependencies": {
+    "hapi": "1.x.x"
+  }
+}
