@@ -17,33 +17,17 @@ exports.register = function (plugin, options, next) {
   var settings = plugin.hapi.utils.applyToDefaults(internals.defaults, options);
 
   plugin.dependency('yar');
-  plugin.api('settings', settings);
-  //plugin.api('oauth2orize', oauth2orize);
-  plugin.api('grant', internals.grant);
-  plugin.api('grants', oauth2orize.grant);
-  plugin.api('exchange', internals.exchange);
-  plugin.api('exchanges', oauth2orize.exchange);
-  plugin.api('authorize', internals.authorize);
-  plugin.api('decision', internals.decision);
-  plugin.api('token', internals.token);
-  plugin.api('errorHandler', internals.errorHandler);
-  plugin.api('serializeClient', internals.serializeClient);
-  plugin.api('deserializeClient', internals.deserializeClient);
-
-  //plugin.ext('onPreAuth', [
-    //internals.fixSessions()
-  //], {
-    //after: 'yar'
-  //})
-
-
-  //server.serializeClient(function (client, done) {
-    //done(null, client.id);
-  //});
-
-  //server.deserializeClient(function (id, done) {
-    //done(null, id);
-  //});
+  plugin.expose('settings', settings);
+  plugin.expose('grant', internals.grant);
+  plugin.expose('grants', oauth2orize.grant);
+  plugin.expose('exchange', internals.exchange);
+  plugin.expose('exchanges', oauth2orize.exchange);
+  plugin.expose('authorize', internals.authorize);
+  plugin.expose('decision', internals.decision);
+  plugin.expose('token', internals.token);
+  plugin.expose('errorHandler', internals.errorHandler);
+  plugin.expose('serializeClient', internals.serializeClient);
+  plugin.expose('deserializeClient', internals.deserializeClient);
 
   next();
 };
@@ -52,14 +36,6 @@ internals.setHapi = function (module) {
   Hapi = Hapi || module;
 };
 
-// Fix Sessions
-//internals.fixSessions = function () {
-  //return function (request, next) {
-  //}
-//};
-
-
-// Sanitize the oauth2orize functions
 internals.grant = function (grant) {
   server.grant(grant);
 };
@@ -69,9 +45,7 @@ internals.exchange = function (exchange) {
 };
 
 internals.authorize = function (request, callback, authorization) {
-  //console.log(request);
   var express = internals.convertToExpress(request);
-  //console.log(express);
   server.authorize(authorization)(express.req, express.res, function (err) {
     if (err) {
       console.log(err);
