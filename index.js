@@ -44,8 +44,8 @@ internals.exchange = function (exchange) {
   server.exchange(exchange);
 };
 
-internals.authorize = function (request, callback, authorization) {
-  var express = internals.convertToExpress(request);
+internals.authorize = function (request, reply, callback, authorization) {
+  var express = internals.convertToExpress(request, reply);
   server.authorize(authorization)(express.req, express.res, function (err) {
     if (err) {
       console.log(err);
@@ -54,14 +54,13 @@ internals.authorize = function (request, callback, authorization) {
   });
 };
 
-internals.decision = function (request, options, parse) {
+internals.decision = function (request, reply, options, parse) {
   var result,
-    express = internals.convertToExpress(request),
+    express = internals.convertToExpress(request, reply),
     handler = function (err) {
       if (err) {
         console.log('Err1: ' + err);
       }
-      console.log('Decision parsed');
     };
   options = options || {};
   if (options && options.loadTransaction === false) {
@@ -72,7 +71,6 @@ internals.decision = function (request, options, parse) {
       if (err) {
         console.log('Err2: ' + err);
       }
-      console.log('Transactionloader finished');
       result[1](express.req, express.res, handler);
     });
   }
@@ -95,16 +93,17 @@ internals.errorHandler = function () {
   server.errorHandler();
 };
 
-internals.convertToExpress = function (request) {
+internals.convertToExpress = function (request, reply) {
   var server = {
     req: {
       session: request.session,
       query: request.query,
-      body: request.payload
+      body: request.payload,
+      user: request.user
     },
     res: {
       redirect: function (uri) {
-        request.reply.redirect(uri);
+        reply().redirect(uri);
       }
     }
   };
