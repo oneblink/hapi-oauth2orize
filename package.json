@@ -7,6 +7,6 @@
     "oauth2orize": "~1.0.1"
   },
   "peerDependencies": {
-    "hapi": "1.x.x"
+    "hapi": "2.x.x"
   }
 }
