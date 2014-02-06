@@ -1,5 +1,5 @@
 {
-  "name": "hapi-oauth2orize",
+  "name": "immigration",
   "description": "Wrapper around OAuth2Orize for Hapi",
   "version": "0.0.1",
   "main": "index",
