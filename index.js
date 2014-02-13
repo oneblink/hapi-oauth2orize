@@ -44,9 +44,9 @@ internals.exchange = function (exchange) {
   server.exchange(exchange);
 };
 
-internals.authorize = function (request, reply, callback, authorization) {
+internals.authorize = function (request, reply, callback, options, validate, immediate) {
   var express = internals.convertToExpress(request, reply);
-  server.authorize(authorization)(express.req, express.res, function (err) {
+  server.authorize(options, validate, immediate)(express.req, express.res, function (err) {
     if (err) {
       console.log(err);
     }
