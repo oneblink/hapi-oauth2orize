@@ -85,8 +85,8 @@ internals.deserializeClient = function (fn) {
   server.deserializeClient(fn);
 };
 
-internals.token = function () {
-  server.token();
+internals.token = function (options) {
+  server.token(options);
 };
 
 internals.errorHandler = function () {
