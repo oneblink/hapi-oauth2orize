@@ -94,12 +94,14 @@ internals.errorHandler = function () {
 };
 
 internals.convertToExpress = function (request, reply) {
+  request.session.lazy(true);
   var server = {
     req: {
       session: request.session,
       query: request.query,
       body: request.payload,
-      user: request.user
+      user: request.user,
+      oauth2: request.session.authorize
     },
     res: {
       redirect: function (uri) {
@@ -107,6 +109,5 @@ internals.convertToExpress = function (request, reply) {
       }
     }
   };
-  request.session.lazy(true);
   return server;
 };
