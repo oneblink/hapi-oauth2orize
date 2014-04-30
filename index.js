@@ -100,8 +100,7 @@ internals.convertToExpress = function (request, reply) {
       session: request.session,
       query: request.query,
       body: request.payload,
-      user: request.user,
-      oauth2: request.session.authorize
+      user: request.user
     },
     res: {
       redirect: function (uri) {

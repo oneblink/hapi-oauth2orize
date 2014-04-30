@@ -1,7 +1,7 @@
 {
   "name": "hapi-oauth2orize",
   "description": "Wrapper around OAuth2Orize for Hapi",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "index",
   "dependencies": {
     "oauth2orize": "~1.0.1"
