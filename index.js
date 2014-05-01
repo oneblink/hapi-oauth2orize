@@ -112,12 +112,12 @@ internals.convertToExpress = function (request, reply) {
         reply().redirect(uri);
       },
       setHeader: function (header, value) {
-        server.headers.push({header: value});
+        server.headers.push([header, value]);
       },
       end: function (content) {
         var response = reply(content);
-        server.forEach(function (element) {
-          response.header(element.header, element.value);
+        server.headers.forEach(function (element) {
+          response.header(element[0], element[1]);
         });
       }
     },
