@@ -85,8 +85,13 @@ internals.deserializeClient = function (fn) {
   server.deserializeClient(fn);
 };
 
-internals.token = function (options) {
-  server.token(options);
+internals.token = function (request, reply, options) {
+  var express = internals.convertToExpress(request, reply);
+  server.token(options)(express.req, express.res, function (err) {
+    if (err) {
+      console.log(err);
+    }
+  });
 };
 
 internals.errorHandler = function () {
