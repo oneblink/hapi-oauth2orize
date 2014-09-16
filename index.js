@@ -3,6 +3,7 @@
 
 var oauth2orize = require('oauth2orize');
 var server = oauth2orize.createServer();
+var Hoek = require('hoek');
 var Hapi = null;
 
 // Declare internals
@@ -14,7 +15,7 @@ var internals = {
 exports.register = function (plugin, options, next) {
   internals.setHapi(plugin.hapi);
 
-  var settings = plugin.hapi.utils.applyToDefaults(internals.defaults, options);
+  var settings = Hoek.applyToDefaults(internals.defaults, options);
 
   plugin.dependency('yar');
   plugin.expose('settings', settings);
