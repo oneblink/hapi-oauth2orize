@@ -126,4 +126,4 @@ internals.convertToExpress = function (request, reply) {
   return server;
 };
 
-exports.register.attributes = include('./package.json');
+exports.register.attributes = require('./package.json');
