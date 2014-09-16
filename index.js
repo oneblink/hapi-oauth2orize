@@ -17,6 +17,7 @@ exports.register = function (plugin, options, next) {
 
   var settings = Hoek.applyToDefaults(internals.defaults, options);
 
+  plugin.dependency('yar');
   plugin.expose('settings', settings);
   plugin.expose('grant', internals.grant);
   plugin.expose('grants', oauth2orize.grant);
