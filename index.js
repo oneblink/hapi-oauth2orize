@@ -125,3 +125,5 @@ internals.convertToExpress = function (request, reply) {
   };
   return server;
 };
+
+exports.register.attributes = include('./package.json');
