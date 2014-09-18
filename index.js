@@ -118,11 +118,18 @@ internals.convertToExpress = function (request, reply) {
         server.headers.push([header, value]);
       },
       end: function (content) {
+        
         var response = reply(content);
+        
         server.headers.forEach(function (element) {
           response.header(element[0], element[1]);
         });
-      }
+        
+        if (this.statusCode) {
+          response.code(this.statusCode);
+        }
+        
+      },
     },
     headers: []
   };
