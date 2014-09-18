@@ -2,8 +2,8 @@
 // Load modules
 
 var oauth2orize = require('oauth2orize');
-var server = oauth2orize.createServer();
 var Hoek = require('hoek');
+var server = oauth2orize.createServer();
 var Hapi = null;
 
 // Declare internals
@@ -45,14 +45,20 @@ internals.exchange = function (exchange) {
   server.exchange(exchange);
 };
 
+internals.errorHandler = server.errorHandler;
+
 internals.authorize = function (request, reply, callback, options, validate, immediate) {
   var express = internals.convertToExpress(request, reply);
+  
   server.authorize(options, validate, immediate)(express.req, express.res, function (err) {
+    
     if (err) {
-      console.log(err);
+      internals.errorHandler({mode: 'indirect'})(err, express.req, express.res, console.log);
     }
+    
     callback(express.req, express.res);
   });
+  
 };
 
 internals.decision = function (request, reply, options, parse) {
@@ -60,7 +66,7 @@ internals.decision = function (request, reply, options, parse) {
     express = internals.convertToExpress(request, reply),
     handler = function (err) {
       if (err) {
-        console.log('Err1: ' + err);
+        internals.errorHandler()(err, express.req, express.res, console.log);
       }
     };
   options = options || {};
@@ -90,13 +96,9 @@ internals.token = function (request, reply, options) {
   var express = internals.convertToExpress(request, reply);
   server.token(options)(express.req, express.res, function (err) {
     if (err) {
-      console.log(err);
+      internals.errorHandler()(err, express.req, express.res, console.log)
     }
   });
-};
-
-internals.errorHandler = function () {
-  server.errorHandler();
 };
 
 internals.convertToExpress = function (request, reply) {
