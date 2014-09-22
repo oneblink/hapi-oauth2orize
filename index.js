@@ -108,7 +108,7 @@ internals.convertToExpress = function (request, reply) {
       session: request.session,
       query: request.query,
       body: request.payload,
-      user: request.user
+      user: request.auth.credentials.user
     },
     res: {
       redirect: function (uri) {
@@ -119,8 +119,31 @@ internals.convertToExpress = function (request, reply) {
       },
       end: function (content) {
         
+        // Transform errors to be handled as Boomers
+        if (typeof content == "string") {
+          
+          try {
+            
+            var jsonContent = JSON.parse(content);
+            
+            if (jsonContent.error && this.statusCode) {
+              
+              content = Hapi.boom.create(this.statusCode, jsonContent.error_description);
+              
+              // Now that we have a Boom object, we can let hapi handle headers and status codes
+              server.headers = [];
+              this.statusCode = null;
+              
+            }
+            
+            
+          } catch(e) {}
+          
+        }
+        
         var response = reply(content);
         
+        // Non-boom error fallback
         server.headers.forEach(function (element) {
           response.header(element[0], element[1]);
         });
