@@ -3,6 +3,7 @@
 
 var oauth2orize = require('oauth2orize');
 var Hoek = require('hoek');
+var Url = require('url');
 var server = oauth2orize.createServer();
 var Hapi = null;
 
@@ -65,6 +66,7 @@ internals.decision = function (request, reply, options, parse) {
   var result,
     express = internals.convertToExpress(request, reply),
     handler = function (err) {
+      console.log(err);
       if (err) {
         internals.errorHandler()(err, express.req, express.res, console.log);
       }
@@ -108,11 +110,33 @@ internals.convertToExpress = function (request, reply) {
       session: request.session,
       query: request.query,
       body: request.payload,
-      user: request.auth.credentials.user
+      user: request.auth.credentials ? request.auth.credentials.user : null
     },
     res: {
       redirect: function (uri) {
-        reply().redirect(uri);
+        
+        // map errors in URL to be similar to Boom errors.
+        uriObj = Url.parse(uri, true);
+        
+        if (uriObj.query.error) {
+          
+          // Hide detailed server error messages
+          if (uriObj.query.error == "server_error") {
+            uriObj.query.message = "An internal server error occurred";
+          }
+          
+          // Use `message` property name like Boom
+          if (uriObj.query.error_description) {
+            uriObj.query.message = uriObj.query.error_description;
+            delete uriObj.query.error_description;
+          }
+         
+          uri = Url.format(uriObj);
+          
+        }
+        
+        reply.redirect(uri);
+        
       },
       setHeader: function (header, value) {
         server.headers.push([header, value]);
