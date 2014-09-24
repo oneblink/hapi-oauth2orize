@@ -4,7 +4,7 @@
 var oauth2orize = require('oauth2orize');
 var Hoek = require('hoek');
 var Url = require('url');
-var server = oauth2orize.createServer();
+var server = null;
 var Hapi = null;
 
 // Declare internals
@@ -14,22 +14,32 @@ var internals = {
 };
 
 exports.register = function (plugin, options, next) {
+  
   internals.setHapi(plugin.hapi);
-
+  
   var settings = Hoek.applyToDefaults(internals.defaults, options);
 
+  // note, not all oauth2orize options are supported.  the defaults are, however.
+  server = oauth2orize.createServer(settings);
+  
+  // Need session support for transaction in authorization code grant
   plugin.dependency('yar');
-  plugin.expose('settings', settings);
-  plugin.expose('grant', internals.grant);
-  plugin.expose('grants', oauth2orize.grant);
-  plugin.expose('exchange', internals.exchange);
-  plugin.expose('exchanges', oauth2orize.exchange);
-  plugin.expose('authorize', internals.authorize);
-  plugin.expose('decision', internals.decision);
-  plugin.expose('token', internals.token);
+  
+  plugin.expose('settings'    , settings);
+  plugin.expose('grant'       , internals.grant);
+  plugin.expose('grants'      , oauth2orize.grant);
+  plugin.expose('exchange'    , internals.exchange);
+  plugin.expose('exchanges'   , oauth2orize.exchange);
+  plugin.expose('authorize'   , internals.authorize);
+  plugin.expose('decision'    , internals.decision);
+  plugin.expose('token'       , internals.token);
   plugin.expose('errorHandler', internals.errorHandler);
-  plugin.expose('serializeClient', internals.serializeClient);
-  plugin.expose('deserializeClient', internals.deserializeClient);
+  plugin.expose('errors', {
+    AuthorizationError  : oauth2orize.AuthorizationError,
+    TokenError          : oauth2orize.TokenError
+  });
+  plugin.expose('serializeClient'   , internals.serializeClient);
+  plugin.expose('deserializeClient' , internals.deserializeClient);
 
   next();
 };
@@ -46,7 +56,9 @@ internals.exchange = function (exchange) {
   server.exchange(exchange);
 };
 
-internals.errorHandler = server.errorHandler;
+internals.errorHandler = function(options) {
+  return server.errorHandler(options);
+}
 
 internals.authorize = function (request, reply, callback, options, validate, immediate) {
   var express = internals.convertToExpress(request, reply);
@@ -54,7 +66,16 @@ internals.authorize = function (request, reply, callback, options, validate, imm
   server.authorize(options, validate, immediate)(express.req, express.res, function (err) {
     
     if (err) {
-      internals.errorHandler({mode: 'indirect'})(err, express.req, express.res, console.log);
+      internals.errorHandler({mode: 'indirect'})(err, express.req, express.res,
+        
+        // if indirect gets nixed, handle it directly
+        function(err, express) {
+          return function() {
+            internals.errorHandler({mode: 'direct'})(err, express.req, express.res, console.log);
+          }
+        }(err, express)
+        
+      );
     }
     
     callback(express.req, express.res);
@@ -66,7 +87,6 @@ internals.decision = function (request, reply, options, parse) {
   var result,
     express = internals.convertToExpress(request, reply),
     handler = function (err) {
-      console.log(err);
       if (err) {
         internals.errorHandler()(err, express.req, express.res, console.log);
       }
@@ -103,6 +123,27 @@ internals.token = function (request, reply, options) {
   });
 };
 
+// Takes in a Boom error and a oauth2orize error, and makes a custom Boom error to spec.
+internals.transformBoomError = function(boomE, authE) {
+  
+  if (!boomE.isBoom) {
+    return boomE;
+  }
+  
+  var overrides = authE || boomE.data || {};
+  
+  Hoek.merge(boomE.output.payload, overrides)
+  
+  if (!boomE.output.payload.error_description && boomE.output.payload.message) {
+    boomE.output.payload.error_description = boomE.output.payload.message;
+  }
+  
+  delete boomE.output.payload.message;
+  delete boomE.output.payload.statusCode;
+  
+  return boomE;
+}
+
 internals.convertToExpress = function (request, reply) {
   request.session.lazy(true);
   var server = {
@@ -115,22 +156,16 @@ internals.convertToExpress = function (request, reply) {
     res: {
       redirect: function (uri) {
         
-        // map errors in URL to be similar to Boom errors.
-        uriObj = Url.parse(uri, true);
+        // map errors in URL to be similar to our custom Boom errors.
+        var uriObj = Url.parse(uri, true);
         
         if (uriObj.query.error) {
           
           // Hide detailed server error messages
           if (uriObj.query.error == "server_error") {
-            uriObj.query.message = "An internal server error occurred";
+            uriObj.query.error_description = "An internal server error occurred";
           }
           
-          // Use `message` property name like Boom
-          if (uriObj.query.error_description) {
-            uriObj.query.message = uriObj.query.error_description;
-            delete uriObj.query.error_description;
-          }
-         
           uri = Url.format(uriObj);
           
         }
@@ -146,22 +181,24 @@ internals.convertToExpress = function (request, reply) {
         // Transform errors to be handled as Boomers
         if (typeof content == "string") {
           
+          var jsonContent;
           try {
-            
-            var jsonContent = JSON.parse(content);
-            
-            if (jsonContent.error && this.statusCode) {
+            jsonContent = JSON.parse(content);
+          } catch(e) {/* If we got a json error, ignore it.  The oauth2orize's response just wasn't json.*/}
+          
+          // If we have a json response and it's an error, let's Boomify/normalize it!
+          if (jsonContent && jsonContent.error && this.statusCode) {
               
-              content = Hapi.boom.create(this.statusCode, jsonContent.error_description);
+              content = Hapi.boom.create(this.statusCode, null, jsonContent);
+              
+              // Transform Boom error using jsonContent data attached to it
+              internals.transformBoomError(content);
               
               // Now that we have a Boom object, we can let hapi handle headers and status codes
               server.headers = [];
               this.statusCode = null;
               
-            }
-            
-            
-          } catch(e) {}
+          }
           
         }
         
@@ -176,7 +213,7 @@ internals.convertToExpress = function (request, reply) {
           response.code(this.statusCode);
         }
         
-      },
+      }
     },
     headers: []
   };
