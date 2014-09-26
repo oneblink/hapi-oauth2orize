@@ -134,8 +134,17 @@ internals.transformBoomError = function(boomE, authE) {
   
   Hoek.merge(boomE.output.payload, overrides)
   
+  var origBoomMessage = boomE.output.payload.message;
+  
   if (!boomE.output.payload.error_description && boomE.output.payload.message) {
     boomE.output.payload.error_description = boomE.output.payload.message;
+  }
+  
+  // Hide server errors however Boom does it
+  if (boomE.output.statusCode == 500 ||
+      boomE.output.payload.error == "server_error") {
+    
+    boomE.output.payload.error_description = origBoomMessage;
   }
   
   delete boomE.output.payload.message;
