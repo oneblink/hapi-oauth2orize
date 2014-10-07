@@ -8,6 +8,6 @@
     "hoek": "^2.4.x"
   },
   "peerDependencies": {
-    "hapi": ">=2.x.x"
+    "hapi": "^6.x.x"
   }
 }
