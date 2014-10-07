@@ -1,8 +1,12 @@
-Immigration
+hapi-oauth2orize
 ===
-A bridge between [Hapi](https://github.com/spumko/hapi) and [OAuth2orize](https://github.com/jaredhanson/oauth2orize)
 
-OAuth2orize? Its a OAuth provider implemented as a middleware for express. Given that you are (presumably) using Hapi, you will need a bridge to make it work in Hapi land. Thus, Immigration.
+Note, this documentation is out of date.  This project is currently being brought into the present.  The most useful things to look at are currently the documentation/examples for [OAuth2orize](https://github.com/jaredhanson/oauth2orize) and [the OAuth2orize methods that are exposed by the plugin](https://github.com/devinivy/hapi-oauth2orize/blob/e468a9ab1c55bef43b63a411f82bb3bef21b8b7e/index.js#L28).
+
+---
+A bridge between [Hapi](https://github.com/hapijs/hapi) and [OAuth2orize](https://github.com/jaredhanson/oauth2orize)
+
+OAuth2orize? It's an OAuth provider implemented as a middleware for express. Given that you are (presumably) using Hapi, you will need a bridge to make it work in Hapi land. Thus, Immigration.
 
 Usage
 ---
