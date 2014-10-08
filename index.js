@@ -25,6 +25,37 @@ exports.register = function (plugin, options, next) {
   // Need session support for transaction in authorization code grant
   plugin.dependency('yar');
   
+  // Catch raw Token/AuthorizationErrors and turn them into legit OAuthified Boom errors
+  plugin.ext('onPreResponse', function (request, reply) {
+
+    var response = request.response;
+    
+    var newResponse;
+    
+    // Catch raw Token/AuthorizationErrors and process them
+    if ( response instanceof oauth2orize.TokenError || 
+         response instanceof oauth2orize.AuthorizationError ) {
+          
+          // These little bits of code are stolen from oauth2orize
+          // to translate raw Token/AuthorizationErrors to OAuth2 style errors
+          var newResponse = {};
+          newResponse.error = response.code || 'server_error';
+          if (response.message) { newResponse.error_description = response.message; }
+          if (response.uri) { newResponse.error_uri = response.uri; }
+          
+          // These little bits of code Boomify raw OAuth2 style errors
+          newResponse = Hapi.boom.create(response.status, null, newResponse);
+          internals.transformBoomError(newResponse);
+          
+    }
+    
+    if (newResponse) {
+        reply(newResponse)
+    } else {
+        reply();
+    }
+  });
+  
   plugin.expose('settings'    , settings);
   plugin.expose('grant'       , internals.grant);
   plugin.expose('grants'      , oauth2orize.grant);
