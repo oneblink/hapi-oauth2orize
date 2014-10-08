@@ -38,7 +38,7 @@ exports.register = function (plugin, options, next) {
           
           // These little bits of code are stolen from oauth2orize
           // to translate raw Token/AuthorizationErrors to OAuth2 style errors
-          var newResponse = {};
+          newResponse = {};
           newResponse.error = response.code || 'server_error';
           if (response.message) { newResponse.error_description = response.message; }
           if (response.uri) { newResponse.error_uri = response.uri; }
