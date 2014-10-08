@@ -50,7 +50,7 @@ exports.register = function (plugin, options, next) {
     }
     
     if (newResponse) {
-        reply(newResponse)
+        reply(newResponse);
     } else {
         reply();
     }
