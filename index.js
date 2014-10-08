@@ -196,16 +196,23 @@ internals.convertToExpress = function (request, reply) {
           } catch(e) {/* If we got a json error, ignore it.  The oauth2orize's response just wasn't json.*/}
           
           // If we have a json response and it's an error, let's Boomify/normalize it!
-          if (jsonContent && jsonContent.error && this.statusCode) {
+          if (jsonContent) {
               
-              content = Hapi.boom.create(this.statusCode, null, jsonContent);
-              
-              // Transform Boom error using jsonContent data attached to it
-              internals.transformBoomError(content);
-              
-              // Now that we have a Boom object, we can let hapi handle headers and status codes
-              server.headers = [];
-              this.statusCode = null;
+              if (jsonContent.error && this.statusCode) {
+                  
+                  content = Hapi.boom.create(this.statusCode, null, jsonContent);
+                  
+                  // Transform Boom error using jsonContent data attached to it
+                  internals.transformBoomError(content);
+                  
+                  // Now that we have a Boom object, we can let hapi handle headers and status codes
+                  server.headers = [];
+                  this.statusCode = null;
+                  
+              } else {
+                  // Respond non-error content as a json object if it is json.
+                  content = jsonContent;
+              }
               
           }
           
