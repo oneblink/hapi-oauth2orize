@@ -25,6 +25,37 @@ exports.register = function (plugin, options, next) {
   // Need session support for transaction in authorization code grant
   plugin.dependency('yar');
   
+  // Catch raw Token/AuthorizationErrors and turn them into legit OAuthified Boom errors
+  plugin.ext('onPreResponse', function (request, reply) {
+
+    var response = request.response;
+    
+    var newResponse;
+    
+    // Catch raw Token/AuthorizationErrors and process them
+    if ( response instanceof oauth2orize.TokenError || 
+         response instanceof oauth2orize.AuthorizationError ) {
+          
+          // These little bits of code are stolen from oauth2orize
+          // to translate raw Token/AuthorizationErrors to OAuth2 style errors
+          newResponse = {};
+          newResponse.error = response.code || 'server_error';
+          if (response.message) { newResponse.error_description = response.message; }
+          if (response.uri) { newResponse.error_uri = response.uri; }
+          
+          // These little bits of code Boomify raw OAuth2 style errors
+          newResponse = Hapi.boom.create(response.status, null, newResponse);
+          internals.transformBoomError(newResponse);
+          
+    }
+    
+    if (newResponse) {
+        reply(newResponse);
+    } else {
+        reply();
+    }
+  });
+  
   plugin.expose('settings'    , settings);
   plugin.expose('grant'       , internals.grant);
   plugin.expose('grants'      , oauth2orize.grant);
@@ -196,16 +227,23 @@ internals.convertToExpress = function (request, reply) {
           } catch(e) {/* If we got a json error, ignore it.  The oauth2orize's response just wasn't json.*/}
           
           // If we have a json response and it's an error, let's Boomify/normalize it!
-          if (jsonContent && jsonContent.error && this.statusCode) {
+          if (jsonContent) {
               
-              content = Hapi.boom.create(this.statusCode, null, jsonContent);
-              
-              // Transform Boom error using jsonContent data attached to it
-              internals.transformBoomError(content);
-              
-              // Now that we have a Boom object, we can let hapi handle headers and status codes
-              server.headers = [];
-              this.statusCode = null;
+              if (jsonContent.error && this.statusCode) {
+                  
+                  content = Hapi.boom.create(this.statusCode, null, jsonContent);
+                  
+                  // Transform Boom error using jsonContent data attached to it
+                  internals.transformBoomError(content);
+                  
+                  // Now that we have a Boom object, we can let hapi handle headers and status codes
+                  server.headers = [];
+                  this.statusCode = null;
+                  
+              } else {
+                  // Respond non-error content as a json object if it is json.
+                  content = jsonContent;
+              }
               
           }
           
