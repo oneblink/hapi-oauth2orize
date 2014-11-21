@@ -59,6 +59,7 @@ exports.register = function (plugin, options, next) {
     }
   });
 
+  plugin.expose('server'    , server);
   plugin.expose('settings'    , settings);
   plugin.expose('grant'       , internals.grant);
   plugin.expose('grants'      , oauth2orize.grant);
