@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "oauth2orize": "~1.0.1",
-    "boom": "~2.6.1 ",
+    "boom": "~2.6.1",
     "hoek": "^2.4.x"
   },
   "peerDependencies": {
