@@ -1,7 +1,7 @@
 {
   "name": "hapi-oauth2orize",
   "description": "Wrapper around OAuth2orize for Hapi",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "main": "index",
   "repository": {
     "type": "git",
@@ -9,9 +9,10 @@
   },
   "dependencies": {
     "oauth2orize": "~1.0.1",
+    "boom": "~2.6.1 ",
     "hoek": "^2.4.x"
   },
   "peerDependencies": {
-    "hapi": "^7.x.x"
+    "hapi": "~8.x.x"
   }
 }
