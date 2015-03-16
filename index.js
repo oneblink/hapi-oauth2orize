@@ -24,7 +24,7 @@ exports.register = function (server, options, next) {
 
   // Catch raw Token/AuthorizationErrors and turn them into legit OAuthified Boom errors
   server.ext('onPreResponse', function (request, reply) {
-
+    
     var response = request.response;
 
     var newResponse;
@@ -33,21 +33,7 @@ exports.register = function (server, options, next) {
     if (response instanceof Oauth2orize.TokenError ||
         response instanceof Oauth2orize.AuthorizationError) {
 
-      // These little bits of code are stolen from oauth2orize
-      // to translate raw Token/AuthorizationErrors to OAuth2 style errors
-      newResponse = {};
-      newResponse.error = response.code || 'server_error';
-      if (response.message) {
-        newResponse.error_description = response.message;
-      }
-      if (response.uri) {
-        newResponse.error_uri = response.uri;
-      }
-
-      // These little bits of code Boomify raw OAuth2 style errors
-      newResponse = Boom.create(response.status, null, newResponse);
-      internals.transformBoomError(newResponse);
-
+      newResponse = internals.oauthToBoom(response);
     }
 
     if (newResponse) {
@@ -67,6 +53,7 @@ exports.register = function (server, options, next) {
   server.expose('decision'    , internals.decision);
   server.expose('token'       , internals.token);
   server.expose('errorHandler', internals.errorHandler);
+  server.expose('oauthToBoom' , internals.oauthToBoom);
   server.expose('errors', {
     AuthorizationError  : Oauth2orize.AuthorizationError,
     TokenError          : Oauth2orize.TokenError
@@ -181,6 +168,27 @@ internals.transformBoomError = function (boomE, authE) {
 
   return boomE;
 };
+
+internals.oauthToBoom = function(oauthError) {
+      
+      // These little bits of code are stolen from oauth2orize
+      // to translate raw Token/AuthorizationErrors to OAuth2 style errors
+      
+      var newResponse = {};
+      newResponse.error = oauthError.code || 'server_error';
+      if (oauthError.message) {
+        newResponse.error_description = oauthError.message;
+      }
+      if (oauthError.uri) {
+        newResponse.error_uri = oauthError.uri;
+      }
+      
+      // These little bits of code Boomify raw OAuth2 style errors
+      newResponse = Boom.create(oauthError.status, null, newResponse);
+      internals.transformBoomError(newResponse);
+      
+      return newResponse;
+}
 
 internals.convertToExpress = function (request, reply) {
   request.session.lazy(true);
