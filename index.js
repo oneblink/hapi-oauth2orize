@@ -12,7 +12,7 @@ var internals = {
     },
     OauthServer,
     settings;
-    
+
 exports.register = function (server, options, next) {
 
   settings = Hoek.applyToDefaults(internals.defaults, options);
@@ -24,7 +24,7 @@ exports.register = function (server, options, next) {
 
   // Catch raw Token/AuthorizationErrors and turn them into legit OAuthified Boom errors
   server.ext('onPreResponse', function (request, reply) {
-    
+
     var response = request.response;
 
     var newResponse;
@@ -64,12 +64,12 @@ exports.register = function (server, options, next) {
   next();
 };
 
-internals.grant = function (grant) {
-  OauthServer.grant(grant);
+internals.grant = function (type, phase, fn) {
+  OauthServer.grant(type, phase, fn);
 };
 
-internals.exchange = function (exchange) {
-  OauthServer.exchange(exchange);
+internals.exchange = function (type, exchange) {
+  OauthServer.exchange(type, exchange);
 };
 
 internals.errorHandler = function (options) {
@@ -170,10 +170,10 @@ internals.transformBoomError = function (boomE, authE) {
 };
 
 internals.oauthToBoom = function(oauthError) {
-      
+
       // These little bits of code are stolen from oauth2orize
       // to translate raw Token/AuthorizationErrors to OAuth2 style errors
-      
+
       var newResponse = {};
       newResponse.error = oauthError.code || 'server_error';
       if (oauthError.message) {
@@ -182,11 +182,11 @@ internals.oauthToBoom = function(oauthError) {
       if (oauthError.uri) {
         newResponse.error_uri = oauthError.uri;
       }
-      
+
       // These little bits of code Boomify raw OAuth2 style errors
       newResponse = Boom.create(oauthError.status, null, newResponse);
       internals.transformBoomError(newResponse);
-      
+
       return newResponse;
 }
 
