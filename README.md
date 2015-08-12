@@ -5,7 +5,7 @@ A bridge between [hapi8+](https://github.com/hapijs/hapi) and [OAuth2orize](http
 
 OAuth2orize is an OAuth2 provider implemented as a middleware for express. Given that you are (presumably) using hapi, you will need a bridge to make it work in hapi land. Thus, hapi-oauth2orize.
 
-Note, this documentation is somewhat out of date.  This project is currently being brought into the present.  The most useful things to look at are currently the documentation/examples for [OAuth2orize](https://github.com/jaredhanson/oauth2orize) and [the OAuth2orize methods that are exposed by the plugin](https://github.com/blinkmobile/hapi-oauth2orize/blob/v2.0.0/index.js#L62).
+Note, this documentation is somewhat out of date.  This project is currently being brought into the present.  The most useful things to look at are currently the documentation/examples for [OAuth2orize](https://github.com/jaredhanson/oauth2orize) and [the OAuth2orize methods that are exposed by the plugin](https://github.com/blinkmobile/hapi-oauth2orize/blob/v2.0.0/index.js#L24).
 
 Usage
 ---
