@@ -1,5 +1,3 @@
-'use strict';
-
 var Oauth2orize = require('oauth2orize');
 var Boom = require('boom');
 var Hoek = require('hoek');
@@ -12,7 +10,7 @@ var internals = {
     },
     OauthServer,
     settings;
-    
+
 exports.register = function (server, options, next) {
 
   settings = Hoek.applyToDefaults(internals.defaults, options);
@@ -24,7 +22,7 @@ exports.register = function (server, options, next) {
 
   // Catch raw Token/AuthorizationErrors and turn them into legit OAuthified Boom errors
   server.ext('onPreResponse', function (request, reply) {
-    
+
     var response = request.response;
 
     var newResponse;
@@ -170,10 +168,10 @@ internals.transformBoomError = function (boomE, authE) {
 };
 
 internals.oauthToBoom = function(oauthError) {
-      
+
       // These little bits of code are stolen from oauth2orize
       // to translate raw Token/AuthorizationErrors to OAuth2 style errors
-      
+
       var newResponse = {};
       newResponse.error = oauthError.code || 'server_error';
       if (oauthError.message) {
@@ -182,15 +180,16 @@ internals.oauthToBoom = function(oauthError) {
       if (oauthError.uri) {
         newResponse.error_uri = oauthError.uri;
       }
-      
+
       // These little bits of code Boomify raw OAuth2 style errors
       newResponse = Boom.create(oauthError.status, null, newResponse);
       internals.transformBoomError(newResponse);
-      
+
       return newResponse;
 }
 
 internals.convertToExpress = function (request, reply) {
+
   request.session.lazy(true);
 
   var ExpressServer = {
@@ -277,8 +276,6 @@ internals.convertToExpress = function (request, reply) {
   return ExpressServer;
 };
 
-var Package = require('./package.json');
 exports.register.attributes = {
-      name:       Package.name,
-      version:    Package.version
+  pkg: require('./package.json')
 };
