@@ -3,14 +3,20 @@
   "description": "Wrapper around OAuth2orize for hapi",
   "version": "1.4.0",
   "main": "index.js",
+  "scripts": {
+    "test": "./node_modules/.bin/lab -L"
+  },
   "repository": {
     "type": "git",
     "url": "git://github.com/blinkmobile/hapi-oauth2orize.git"
   },
   "dependencies": {
     "oauth2orize": "~1.0.1",
-    "boom": "~2.6.1",
-    "hoek": "^2.4.x"
+    "boom": "~2.8.0",
+    "hoek": "^2.14.0"
+  },
+  "devDependencies": {
+    "lab": "5.x.x"
   },
   "peerDependencies": {
     "hapi": ">=8.x.x"
