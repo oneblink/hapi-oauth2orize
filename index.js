@@ -1,278 +1,292 @@
-'use strict';
-
-var oauth2orize = require('oauth2orize');
+var Oauth2orize = require('oauth2orize');
+var Boom = require('boom');
 var Hoek = require('hoek');
 var Url = require('url');
 
 var internals = {
-      defaults: {
+    defaults: {
         credentialsUserProperty: 'user'
-      }
     },
-    server,
-    settings,
-    Hapi;
-
-exports.register = function (plugin, options, next) {
-
-  internals.setHapi(plugin.hapi);
-
-  settings = Hoek.applyToDefaults(internals.defaults, options);
-
-  server = oauth2orize.createServer();
-
-  // Need session support for transaction in authorization code grant
-  plugin.dependency('yar');
-
-  // Catch raw Token/AuthorizationErrors and turn them into legit OAuthified Boom errors
-  plugin.ext('onPreResponse', function (request, reply) {
-
-    var response = request.response;
-
-    var newResponse;
-
-    // Catch raw Token/AuthorizationErrors and process them
-    if (response instanceof oauth2orize.TokenError ||
-        response instanceof oauth2orize.AuthorizationError) {
-
-      // These little bits of code are stolen from oauth2orize
-      // to translate raw Token/AuthorizationErrors to OAuth2 style errors
-      newResponse = {};
-      newResponse.error = response.code || 'server_error';
-      if (response.message) {
-        newResponse.error_description = response.message;
-      }
-      if (response.uri) {
-        newResponse.error_uri = response.uri;
-      }
-
-      // These little bits of code Boomify raw OAuth2 style errors
-      newResponse = Hapi.boom.create(response.status, null, newResponse);
-      internals.transformBoomError(newResponse);
-
-    }
-
-    if (newResponse) {
-      reply(newResponse);
-    } else {
-      reply();
-    }
-  });
-
-  plugin.expose('server'    , server);
-  plugin.expose('settings'    , settings);
-  plugin.expose('grant'       , internals.grant);
-  plugin.expose('grants'      , oauth2orize.grant);
-  plugin.expose('exchange'    , internals.exchange);
-  plugin.expose('exchanges'   , oauth2orize.exchange);
-  plugin.expose('authorize'   , internals.authorize);
-  plugin.expose('decision'    , internals.decision);
-  plugin.expose('token'       , internals.token);
-  plugin.expose('errorHandler', internals.errorHandler);
-  plugin.expose('errors', {
-    AuthorizationError  : oauth2orize.AuthorizationError,
-    TokenError          : oauth2orize.TokenError
-  });
-  plugin.expose('serializeClient'   , internals.serializeClient);
-  plugin.expose('deserializeClient' , internals.deserializeClient);
-
-  next();
+    OauthServer: null,
+    settings: null
 };
 
-internals.setHapi = function (module) {
-  Hapi = Hapi || module;
+/*eslint camelcase: [1, {properties: "never"}]*/
+exports.register = function (server, options, next) {
+
+    // Need session support for transaction in authorization code grant
+    server.dependency('yar');
+
+    internals.settings = Hoek.applyToDefaults(internals.defaults, options);
+
+    internals.OauthServer = Oauth2orize.createServer();
+
+    server.expose('server'      , internals.OauthServer);
+    server.expose('settings'    , internals.settings);
+    server.expose('grant'       , internals.grant);
+    server.expose('grants'      , Oauth2orize.grant);
+    server.expose('exchange'    , internals.exchange);
+    server.expose('exchanges'   , Oauth2orize.exchange);
+    server.expose('authorize'   , internals.authorize);
+    server.expose('decision'    , internals.decision);
+    server.expose('token'       , internals.token);
+    server.expose('errorHandler', internals.errorHandler);
+    server.expose('oauthToBoom' , internals.oauthToBoom);
+    server.expose('errors', {
+        AuthorizationError: Oauth2orize.AuthorizationError,
+        TokenError: Oauth2orize.TokenError
+    });
+    server.expose('serializeClient'   , internals.serializeClient);
+    server.expose('deserializeClient' , internals.deserializeClient);
+
+    // Catch raw Token/AuthorizationErrors and turn them into legit OAuthified Boom errors
+    server.ext('onPreResponse', function (request, reply) {
+
+        var response = request.response;
+
+        var newResponse;
+
+        // Catch raw Token/AuthorizationErrors and process them
+        if (response instanceof Oauth2orize.TokenError ||
+            response instanceof Oauth2orize.AuthorizationError) {
+
+            newResponse = internals.oauthToBoom(response);
+        }
+
+        if (newResponse) {
+            reply(newResponse);
+        } else {
+            reply.continue();
+        }
+    });
+
+    next();
 };
 
 internals.grant = function (grant) {
-  server.grant(grant);
+
+    internals.OauthServer.grant(grant);
 };
 
 internals.exchange = function (exchange) {
-  server.exchange(exchange);
+
+    internals.OauthServer.exchange(exchange);
 };
 
 internals.errorHandler = function (options) {
-  return server.errorHandler(options);
+
+    return internals.OauthServer.errorHandler(options);
 };
 
 internals.authorize = function (request, reply, callback, options, validate, immediate) {
-  var express = internals.convertToExpress(request, reply);
 
-  server.authorize(options, validate, immediate)(express.req, express.res, function (err) {
+    var express = internals.convertToExpress(request, reply);
 
-    if (err) {
-      internals.errorHandler({ mode: 'indirect' })(err, express.req, express.res,
+    internals.OauthServer.authorize(options, validate, immediate)(express.req, express.res, function (err) {
 
-          // if indirect gets nixed, handle it directly
-          function (err, express) {
-            return function () {
-              internals.errorHandler({ mode: 'direct' })(err, express.req, express.res, console.log);
-            }
-          }(err, express)
-      );
-    }
+        if (err) {
+            internals.errorHandler({ mode: 'indirect' })(err, express.req, express.res,
+            function () {
 
-    callback(express.req, express.res);
-  });
+                internals.errorHandler({ mode: 'direct' })(err, express.req, express.res, console.log);
+            });
+        }
+
+        callback(express.req, express.res);
+    });
 
 };
 
 internals.decision = function (request, reply, options, parse) {
-  var result,
-      express = internals.convertToExpress(request, reply),
-      handler = function (err) {
+
+    var result;
+    var express = internals.convertToExpress(request, reply);
+    var handler = function (err) {
+
         if (err) {
-          internals.errorHandler()(err, express.req, express.res, console.log);
+            internals.errorHandler()(err, express.req, express.res, console.log);
         }
-      };
+    };
 
-  options = options || {};
+    options = options || {};
 
-  if (options && options.loadTransaction === false) {
-    server.decision(options, parse)(express.req, express.res, handler);
-  } else {
-    result = server.decision(options, parse);
-    result[0](express.req, express.res, function (err) {
-      if (err) {
-        console.log('Err2: ' + err);
-      }
-      result[1](express.req, express.res, handler);
-    });
-  }
+    if (options && options.loadTransaction === false) {
+        internals.OauthServer.decision(options, parse)(express.req, express.res, handler);
+    } else {
+        result = internals.OauthServer.decision(options, parse);
+        result[0](express.req, express.res, function (err) {
+
+            if (err) {
+                console.log('Err2: ' + err);
+            }
+            result[1](express.req, express.res, handler);
+        });
+    }
 };
 
 internals.serializeClient = function (fn) {
-  server.serializeClient(fn);
+
+    internals.OauthServer.serializeClient(fn);
 };
 
 internals.deserializeClient = function (fn) {
-  server.deserializeClient(fn);
+
+    internals.OauthServer.deserializeClient(fn);
 };
 
 internals.token = function (request, reply, options) {
-  var express = internals.convertToExpress(request, reply);
-  server.token(options)(express.req, express.res, function (err) {
-    if (err) {
-      internals.errorHandler()(err, express.req, express.res, console.log)
-    }
-  });
+
+    var express = internals.convertToExpress(request, reply);
+    internals.OauthServer.token(options)(express.req, express.res, function (err) {
+
+        if (err) {
+            internals.errorHandler()(err, express.req, express.res, console.log);
+        }
+    });
 };
 
 // Takes in a Boom error and a oauth2orize error, and makes a custom Boom error to spec.
 internals.transformBoomError = function (boomE, authE) {
 
-  if (!boomE.isBoom) {
+    if (!boomE.isBoom) {
+        return boomE;
+    }
+
+    var overrides = authE || boomE.data || {};
+
+    Hoek.merge(boomE.output.payload, overrides);
+
+    var origBoomMessage = boomE.output.payload.message;
+
+    if (!boomE.output.payload.error_description && boomE.output.payload.message) {
+        boomE.output.payload.error_description = boomE.output.payload.message;
+    }
+
+    // Hide server errors however Boom does it
+    if (boomE.output.statusCode === 500 ||
+        boomE.output.payload.error === 'server_error') {
+
+        boomE.output.payload.error_description = origBoomMessage;
+    }
+
+    delete boomE.output.payload.message;
+    delete boomE.output.payload.statusCode;
+
     return boomE;
-  }
+};
 
-  var overrides = authE || boomE.data || {};
+internals.oauthToBoom = function (oauthError) {
 
-  Hoek.merge(boomE.output.payload, overrides);
+    // These little bits of code are stolen from oauth2orize
+    // to translate raw Token/AuthorizationErrors to OAuth2 style errors
 
-  var origBoomMessage = boomE.output.payload.message;
+    var newResponse = {};
+    newResponse.error = oauthError.code || 'server_error';
+    if (oauthError.message) {
+        newResponse.error_description = oauthError.message;
+    }
+    if (oauthError.uri) {
+        newResponse.error_uri = oauthError.uri;
+    }
 
-  if (!boomE.output.payload.error_description && boomE.output.payload.message) {
-    boomE.output.payload.error_description = boomE.output.payload.message;
-  }
+    // These little bits of code Boomify raw OAuth2 style errors
+    newResponse = Boom.create(oauthError.status, null, newResponse);
+    internals.transformBoomError(newResponse);
 
-  // Hide server errors however Boom does it
-  if (boomE.output.statusCode == 500 ||
-      boomE.output.payload.error == "server_error") {
-
-    boomE.output.payload.error_description = origBoomMessage;
-  }
-
-  delete boomE.output.payload.message;
-  delete boomE.output.payload.statusCode;
-
-  return boomE;
+    return newResponse;
 };
 
 internals.convertToExpress = function (request, reply) {
-  request.session.lazy(true);
 
-  var server = {
-    req: {
-      session: request.session,
-      query: request.query,
-      body: request.payload,
-      user: Hoek.reach(request.auth.credentials, settings.credentialsUserProperty || '',
-          { default: request.auth.credentials })
-    },
-    res: {
-      redirect: function (uri) {
+    request.session.lazy(true);
 
-        // map errors in URL to be similar to our custom Boom errors.
-        var uriObj = Url.parse(uri, true);
+    var ExpressServer = {
+        req: {
+            session: request.session,
+            query: request.query,
+            body: request.payload,
+            user: Hoek.reach(request.auth.credentials, internals.settings.credentialsUserProperty || '',
+                { default: request.auth.credentials })
+        },
+        res: {
+            redirect: function (uri) {
 
-        if (uriObj.query.error) {
+                // map errors in URL to be similar to our custom Boom errors.
+                var uriObj = Url.parse(uri, true);
 
-          // Hide detailed server error messages
-          if (uriObj.query.error == "server_error") {
-            uriObj.query.error_description = "An internal server error occurred";
-          }
+                if (uriObj.query.error) {
 
-          uri = Url.format(uriObj);
+                    // Hide detailed server error messages
+                    if (uriObj.query.error === 'server_error') {
+                        uriObj.query.error_description = 'An internal server error occurred';
+                    }
 
-        }
+                    uri = Url.format(uriObj);
+                }
 
-        reply.redirect(uri);
+                reply.redirect(uri);
+            },
+            setHeader: function (header, value) {
 
-      },
-      setHeader: function (header, value) {
-        server.headers.push([header, value]);
-      },
-      end: function (content) {
+                ExpressServer.headers.push([header, value]);
+            },
+            end: function (content) {
 
-        // Transform errors to be handled as Boomers
-        if (typeof content == "string") {
+                // Transform errors to be handled as Boomers
+                if (typeof content === 'string') {
 
-          var jsonContent;
-          try {
-            jsonContent = JSON.parse(content);
-          } catch (e) {/* If we got a json error, ignore it.  The oauth2orize's response just wasn't json.*/
-          }
+                    var jsonContent;
+                    try {
+                        jsonContent = JSON.parse(content);
+                    } catch (e) {
+                        /* If we got a json error, ignore it.
+                         * The oauth2orize's response just wasn't json.
+                         */
+                    }
 
-          // If we have a json response and it's an error, let's Boomify/normalize it!
-          if (jsonContent) {
+                    // If we have a json response and it's an error, let's Boomify/normalize it!
+                    if (jsonContent) {
 
-            if (jsonContent.error && this.statusCode) {
+                        if (jsonContent.error && this.statusCode) {
 
-              content = Hapi.boom.create(this.statusCode, null, jsonContent);
+                            content = Boom.create(this.statusCode, null, jsonContent);
 
-              // Transform Boom error using jsonContent data attached to it
-              internals.transformBoomError(content);
+                            // Transform Boom error using jsonContent data attached to it
+                            internals.transformBoomError(content);
 
-              // Now that we have a Boom object, we can let Hapi handle headers and status codes
-              server.headers = [];
-              this.statusCode = null;
+                            // Now that we have a Boom object, we can let Hapi handle headers and status codes
+                            ExpressServer.headers = [];
+                            this.statusCode = null;
 
-            } else {
-              // Respond non-error content as a json object if it is json.
-              content = jsonContent;
+                        } else {
+                            // Respond non-error content as a json object if it is json.
+                            content = jsonContent;
+                        }
+
+                    }
+
+                }
+
+                var response = reply(content);
+
+                // Non-boom error fallback
+                ExpressServer.headers.forEach(function (element) {
+
+                    response.header(element[0], element[1]);
+                });
+
+                if (this.statusCode) {
+                    response.code(this.statusCode);
+                }
+
             }
+        },
+        headers: []
+    };
 
-          }
-
-        }
-
-        var response = reply(content);
-
-        // Non-boom error fallback
-        server.headers.forEach(function (element) {
-          response.header(element[0], element[1]);
-        });
-
-        if (this.statusCode) {
-          response.code(this.statusCode);
-        }
-
-      }
-    },
-    headers: []
-  };
-
-  return server;
+    return ExpressServer;
 };
 
-exports.register.attributes = require('./package.json');
+exports.register.attributes = {
+    pkg: require('./package.json')
+};
