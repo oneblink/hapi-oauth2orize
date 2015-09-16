@@ -1,31 +1,30 @@
 hapi-oauth2orize
 ===
 
-Note, this documentation is out of date.  This project is currently being brought into the present.  The most useful things to look at are currently the documentation/examples for [OAuth2orize](https://github.com/jaredhanson/oauth2orize) and [the OAuth2orize methods that are exposed by the plugin](https://github.com/devinivy/hapi-oauth2orize/blob/e468a9ab1c55bef43b63a411f82bb3bef21b8b7e/index.js#L28).
+A bridge between [hapi8+](https://github.com/hapijs/hapi) and [OAuth2orize](https://github.com/jaredhanson/oauth2orize)
 
----
-A bridge between [hapi8](https://github.com/hapijs/hapi) and [OAuth2orize](https://github.com/jaredhanson/oauth2orize)
+OAuth2orize is an OAuth2 provider implemented as a middleware for express. Given that you are (presumably) using hapi, you will need a bridge to make it work in hapi land. Thus, hapi-oauth2orize.
 
-OAuth2orize? It's an OAuth provider implemented as a middleware for express. Given that you are (presumably) using Hapi, you will need a bridge to make it work in Hapi land. Thus, Immigration.
+Note, this documentation is somewhat out of date.  This project is currently being brought into the present.  The most useful things to look at are currently the documentation/examples for [OAuth2orize](https://github.com/jaredhanson/oauth2orize) and [the OAuth2orize methods that are exposed by the plugin](https://github.com/blinkmobile/hapi-oauth2orize/blob/v2.0.0/index.js#L24).
 
 Usage
 ---
 
-`npm install immigration --save`
+`npm install hapi-oauth2orize --save`
 
-After this, the usage is similar to to using vanilla [OAuth2orize](https://github.com/jaredhanson/oauth2orize), but with a couple of tweaks to ensure compatiblity with Hapi (2.x series).
+After this, the usage is similar to to using vanilla [OAuth2orize](https://github.com/jaredhanson/oauth2orize), but with a couple of tweaks to ensure compatiblity with hapi (>=8.x.x series).
 
-    // Require the plugin in Hapi
-    server.require(['immigration'], function (err) {
+    // Require the plugin in hapi
+    server.register(require('hapi-oauth2orize'), function (err) {
       console.log(err);
     });
-    
-    var oauth = server.plugins['immigration'];
-    
+
+    var oauth = server.plugins['hapi-oauth2orize'];
+
 Disclaimer
 ---
 The code below is extracted from a working, but incomplete project. It has not been secured, or even fully finished. However, along with the [OAuth2orize](https://github.com/jaredhanson/oauth2orize) docs, you should be able to create a working implementation of your own.
-    
+
 Implicit Grant Flow
 ---
     oauth.grant(oauth.grants.token(function (client, user, ares, done) {
@@ -52,7 +51,7 @@ Authorization Code Exchange Flow
 	      done(null, code._id);
 	    });
 	  }));
-	
+
 	  oauth.exchange(oauth.exchanges.code(function (client, code, redirectURI, done) {
 	    server.helpers.find('code', code, function (code) {
 	      if (!code || client.id !== code.client || redirectURI !== code.redirectURI) {
@@ -77,7 +76,7 @@ Authorization Code Exchange Flow
 	      });
 	    });
 	  }));
-	
+
 	  oauth.exchange(oauth.exchanges.refreshToken(function (client, refreshToken, scope, done) {
 	    server.helpers.find('refreshToken', refreshToken, function (refreshToken) {
 	      if (refreshToken.client !== client._id) {
@@ -95,12 +94,12 @@ Authorization Code Exchange Flow
 	      });
 	    });
 	  }));
-	
+
 	  // Client Serializers
 	  oauth.serializeClient(function (client, done) {
 	    done(null, client._id);
 	  });
-	
+
 	  oauth.deserializeClient(function (id, done) {
 	    server.helpers.find('client', id, function (client) {
 	      done(null, client[0]);
@@ -123,7 +122,7 @@ OAuth Endpoints
         path: '/oauth/token',
         handler: token
     }]);
-    
+
     function authorize(request, reply) {
       oauth.authorize(request, reply, function (req, res) {
         reply.view('oauth', {transactionID: req.oauth2.transactionID});
