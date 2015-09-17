@@ -63,14 +63,14 @@ exports.register = function (server, options, next) {
     next();
 };
 
-internals.grant = function (grant) {
+internals.grant = function (type, phase, fn) {
 
-    internals.OauthServer.grant(grant);
+    internals.OauthServer.grant(type, phase, fn);
 };
 
-internals.exchange = function (exchange) {
+internals.exchange = function (type, exchange) {
 
-    internals.OauthServer.exchange(exchange);
+    internals.OauthServer.exchange(type, exchange);
 };
 
 internals.errorHandler = function (options) {
