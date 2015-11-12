@@ -14,12 +14,14 @@ Usage
 
 After this, the usage is similar to to using vanilla [OAuth2orize](https://github.com/jaredhanson/oauth2orize), but with a couple of tweaks to ensure compatiblity with hapi (>=8.x.x series).
 
-    // Require the plugin in hapi
-    server.register(require('hapi-oauth2orize'), function (err) {
-      console.log(err);
-    });
+```js
+// Require the plugin in hapi
+server.register(require('hapi-oauth2orize'), function (err) {
+  console.log(err);
+});
 
-    var oauth = server.plugins['hapi-oauth2orize'];
+var oauth = server.plugins['hapi-oauth2orize'];
+```
 
 Disclaimer
 ---
@@ -27,118 +29,123 @@ The code below is extracted from a working, but incomplete project. It has not b
 
 Implicit Grant Flow
 ---
-    oauth.grant(oauth.grants.token(function (client, user, ares, done) {
-      server.helpers.insert('token', {
-        client: client._id,
-        principal: user._id,
-        scope: ares.scope,
-        created: Date.now(),
-        expires_in: 3600
-      }, function (token) {
-        done(null, token._id, {expires_in: token.expires_in});
-      });
-    }));
+```js
+oauth.grant(oauth.grants.token(function (client, user, ares, done) {
+  server.helpers.insert('token', {
+    client: client._id,
+    principal: user._id,
+    scope: ares.scope,
+    created: Date.now(),
+    expires_in: 3600
+  }, function (token) {
+    done(null, token._id, {expires_in: token.expires_in});
+  });
+}));
+```
 
 Authorization Code Exchange Flow
 ---
-	  oauth.grant(oauth.grants.code(function (client, redirectURI, user, ares, done) {
-	    server.helpers.insert('code', {
-	      client: client._id,
-	      principal: user._id,
-	      scope: ares.scope,
-	      redirectURI: redirectURI
-	    }, function (code) {
-	      done(null, code._id);
-	    });
-	  }));
+```js
+oauth.grant(oauth.grants.code(function (client, redirectURI, user, ares, done) {
+  server.helpers.insert('code', {
+    client: client._id,
+    principal: user._id,
+    scope: ares.scope,
+    redirectURI: redirectURI
+  }, function (code) {
+    done(null, code._id);
+  });
+}));
 
-	  oauth.exchange(oauth.exchanges.code(function (client, code, redirectURI, done) {
-	    server.helpers.find('code', code, function (code) {
-	      if (!code || client.id !== code.client || redirectURI !== code.redirectURI) {
-	        return done(null, false);
-	      }
-	      server.helpers.insert('refreshToken', {
-	        client: code.client,
-	        principal: code.principal,
-	        scope: code.scope
-	      }, function (refreshToken) {
-	        server.helpers.insert('token', {
-	          client: code.client,
-	          principal: code.principal,
-	          scope: code.scope,
-	          created: Date.now(),
-	          expires_in: 3600
-	        }, function (token) {
-	          server.helpers.remove('code', code._id, function () {
-	            done(null, token._id, refreshToken._id, {expires_in: token.expires_in});
-	          });
-	        });
-	      });
-	    });
-	  }));
+oauth.exchange(oauth.exchanges.code(function (client, code, redirectURI, done) {
+  server.helpers.find('code', code, function (code) {
+    if (!code || client.id !== code.client || redirectURI !== code.redirectURI) {
+      return done(null, false);
+    }
+    server.helpers.insert('refreshToken', {
+      client: code.client,
+      principal: code.principal,
+      scope: code.scope
+    }, function (refreshToken) {
+      server.helpers.insert('token', {
+        client: code.client,
+        principal: code.principal,
+        scope: code.scope,
+        created: Date.now(),
+        expires_in: 3600
+      }, function (token) {
+        server.helpers.remove('code', code._id, function () {
+          done(null, token._id, refreshToken._id, {expires_in: token.expires_in});
+        });
+      });
+    });
+  });
+}));
 
-	  oauth.exchange(oauth.exchanges.refreshToken(function (client, refreshToken, scope, done) {
-	    server.helpers.find('refreshToken', refreshToken, function (refreshToken) {
-	      if (refreshToken.client !== client._id) {
-	        return done(null, false, { message: 'This refresh token is for a different client'});
-	      }
-	      scope = scope || refreshToken.scope;
-	      server.helpers.insert('token', {
-	        client: client._id,
-	        principal: refreshToken.principal,
-	        scope: scope,
-	        created: Date.now(),
-	        expires_in: 3600
-	      }, function (token) {
-	        done(null, token._id, null, {expires_in: token.expires_in});
-	      });
-	    });
-	  }));
+oauth.exchange(oauth.exchanges.refreshToken(function (client, refreshToken, scope, done) {
+  server.helpers.find('refreshToken', refreshToken, function (refreshToken) {
+    if (refreshToken.client !== client._id) {
+      return done(null, false, { message: 'This refresh token is for a different client'});
+    }
+    scope = scope || refreshToken.scope;
+    server.helpers.insert('token', {
+      client: client._id,
+      principal: refreshToken.principal,
+      scope: scope,
+      created: Date.now(),
+      expires_in: 3600
+    }, function (token) {
+      done(null, token._id, null, {expires_in: token.expires_in});
+    });
+  });
+}));
 
-	  // Client Serializers
-	  oauth.serializeClient(function (client, done) {
-	    done(null, client._id);
-	  });
+// Client Serializers
+oauth.serializeClient(function (client, done) {
+  done(null, client._id);
+});
 
-	  oauth.deserializeClient(function (id, done) {
-	    server.helpers.find('client', id, function (client) {
-	      done(null, client[0]);
-	    });
-	  });
-	};
+oauth.deserializeClient(function (id, done) {
+  server.helpers.find('client', id, function (client) {
+    done(null, client[0]);
+  });
+});
+```
 
 OAuth Endpoints
 ---
-    server.route([{
-        method: 'GET',
-        path: '/oauth/authorize',
-        handler: authorize
-    },{
-        method: 'POST',
-        path: '/oauth/authorize/decision',
-        handler: decision
-    },{
-        method: 'POST',
-        path: '/oauth/token',
-        handler: token
-    }]);
+```js
+server.route([{
+    method: 'GET',
+    path: '/oauth/authorize',
+    handler: authorize
+},{
+    method: 'POST',
+    path: '/oauth/authorize/decision',
+    handler: decision
+},{
+    method: 'POST',
+    path: '/oauth/token',
+    handler: token
+}]);
 
-    function authorize(request, reply) {
-      oauth.authorize(request, reply, function (req, res) {
-        reply.view('oauth', {transactionID: req.oauth2.transactionID});
-      }, function (clientID, redirect, done) {
-        server.helpers.find('client', clientID, function (docs) {
-          done(null, docs[0], docs[0].redirect_uri);
-        });
-      });
-    };
+function authorize(request, reply) {
+  oauth.authorize(request, reply, function (req, res) {
+    reply.view('oauth', {transactionID: req.oauth2.transactionID});
+  }, function (clientID, redirect, done) {
+    server.helpers.find('client', clientID, function (docs) {
+      done(null, docs[0], docs[0].redirect_uri);
+    });
+  });
+};
 
-    function decision(request, reply) {
-        oauth.decision(request, reply);
-    };
+function decision(request, reply) {
+    oauth.decision(request, reply);
+};
 
-    function token(request, reply) {
-      oauth.authorize(function (clientID, redirect, done) {
-        done(null, clientID, redirect);
-      });
-    };
+function token(request, reply) {
+  oauth.authorize(function (clientID, redirect, done) {
+    done(null, clientID, redirect);
+  });
+};
+```
