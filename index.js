@@ -198,11 +198,11 @@ internals.oauthToBoom = function (oauthError) {
 
 internals.convertToExpress = function (request, reply) {
 
-    request.session.lazy(true);
+    request.yar.lazy(true);
 
     var ExpressServer = {
         req: {
-            session: request.session,
+            session: request.yar,
             query: request.query,
             body: request.payload,
             user: Hoek.reach(request.auth.credentials, internals.settings.credentialsUserProperty || '',
